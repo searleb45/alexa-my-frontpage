@@ -1,0 +1,9 @@
+{
+    "intents": [
+        { "intent": "getFrontpageIntent" },
+        { 
+            "intent": "getSubredditIntent", 
+            "slots": [ {"name": "subreddit", "type": "AMAZON.LITERAL"} ] 
+        }
+    ]
+}
