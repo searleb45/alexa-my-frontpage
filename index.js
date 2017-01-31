@@ -13,8 +13,10 @@ var dynamo = new doc.DynamoDB();
 const languageStrings = {
     'LINK_ACCOUNT': 'You need to link your Reddit account to use this skill. See the Alexa app for more information',
     'POSTS_FOUND_HOMEPAGE': 'Here are the top posts from your Reddit front page: ',
-    'FROM_WHERE': 'From ',
-    'CHECK_APP': 'You can see more information about these posts in the Alexa app.'
+    'FROM_WHERE': 'From r ',
+    'CHECK_APP': 'You can see more information about these posts in the Alexa app.',
+    'CARD_TITLE': 'My Frontpage',
+    'SUBREDDIT_PREFIX': '/r/'
 }
 const tableName = 'myFrontpageSubredditCache';
 
@@ -50,15 +52,17 @@ function getSubredditsFromList() {
         httpGet('www.reddit.com', redditPath, (res) => {
             console.log(res);
             var response = languageStrings.POSTS_FOUND_HOMEPAGE;
+            var cardContent = '';
             var toRead = res.data.children.slice(0,5);
             for( let i=0; i<5; i++ ) {
                 let postObj = toRead[i];
                 console.log(postObj);
                 response += languageStrings.FROM_WHERE + postObj.data.subreddit + ': ';
                 response += postObj.data.title + (postObj.data.title.substr(postObj.data.title.length - 1).match('[.?!]') ? ' ' : '. ');
+                cardContent += postObj.data.title + ' - ' + languageStrings.SUBREDDIT_PREFIX + postObj.data.subreddit + '\n';
             }
             response += languageStrings.CHECK_APP;
-            alexa.emit(':tell', response);
+            alexa.emit(':tellWithCard', response, languageStrings.CARD_TITLE, cardContent);
         });
     } else {
         this.emit(':tellWithLinkAccountCard', languageStrings.LINK_ACCOUNT);
@@ -76,7 +80,7 @@ exports.handler = function(event, context, callback) {
 function fetchSubredditList( userId, accessToken ) {
     httpGet('oauth.reddit.com', '/subreddits/mine/subscriber', (res) => {
 
-    });
+    }, accessToken);
 }
 
 function getUserSavedList( userId ) {
@@ -110,7 +114,7 @@ function getUserSavedList( userId ) {
 // subredditList = ['AskReddit', 'technology'];
 // getSubredditsFromList();
 
-function httpGet(host, path, callback) {
+function httpGet(host, path, callback, accessToken) {
     var options = {
         host: host,
         path: path
