@@ -1,7 +1,7 @@
 'use strict';
 var Alexa = require('alexa-sdk'),
     doc = require('aws-sdk'),
-    http = require('http');
+    http = require('https');
 
 
 var APP_ID = 'amzn1.ask.skill.b800d47a-3bb7-4a59-8e7a-f6b6fae05798',
@@ -50,11 +50,12 @@ function getSubredditsFromList() {
         httpGet('www.reddit.com', redditPath, (res) => {
             console.log(res);
             var response = languageStrings.POSTS_FOUND_HOMEPAGE;
-            var toRead = JSON.parse(res).data.children.slice(0,5);
+            var toRead = res.data.children.slice(0,5);
             for( let i=0; i<5; i++ ) {
                 let postObj = toRead[i];
-                response += languageStrings.FROM_WHERE + postObj.subreddit + ': ';
-                response += postObj.title + '. ';
+                console.log(postObj);
+                response += languageStrings.FROM_WHERE + postObj.data.subreddit + ': ';
+                response += postObj.data.title + (postObj.data.title.substr(postObj.data.title.length - 1).match('[.?!]') ? ' ' : '. ');
             }
             response += languageStrings.CHECK_APP;
             alexa.emit(':tell', response);
@@ -101,8 +102,13 @@ function getUserSavedList( userId ) {
     });
 }
 
-subredditList = ['AskReddit', 'technology'];
-getSubredditsFromList();
+// alexa = {
+//     emit: function(eventType, response) {
+//         console.log(response);
+//     }
+// }
+// subredditList = ['AskReddit', 'technology'];
+// getSubredditsFromList();
 
 function httpGet(host, path, callback) {
     var options = {
