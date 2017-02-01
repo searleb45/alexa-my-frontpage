@@ -30,6 +30,7 @@ var handlers = {
     },
     'getFrontpageIntent': function() {
         console.log('intent found');
+        subredditList = [];
         var accessToken = this.event.session.user.accessToken,
             userId = this.event.session.user.userId;
         if( accessToken ) {
@@ -43,7 +44,7 @@ var handlers = {
     'getSubredditIntent': function() {
         var subredditName = this.event.request.intent.slots.subreddit.value.split(' ');
         subredditName = subredditName[Math.max(subredditName.length - 1, 0)];
-        subredditList.push(subredditName);
+        subredditList = [ subredditName ];
         getSubredditsFromList( readPostsFromOne );
     },
     'Unhandled': function() {
@@ -63,15 +64,16 @@ function getSubredditsFromList( callback ) {
 }
 
 function readPostsFromOne( toRead ) {
-    var subredditIntro = languageStrings.POSTS_FOUND_SUBREDDIT.replace('{subreddit}', subredditList[0]);
-    var response = '';
+    var response = languageStrings.POSTS_FOUND_SUBREDDIT.replace('{subreddit}', subredditList[0]);
+    var cardContent = '';
     for( let i=0; i<5; i++) {
         let postObj = toRead[i];
         console.log(postObj);
         response += postObj.data.title + (postObj.data.title.substr(postObj.data.title.length - 1).match('[.?!]') ? ' ' : '. ');
+        cardContent += postObj.data.title + '\n';
     }
     response += languageStrings.CHECK_APP;
-    alexa.emit(':tellWithCard', subredditIntro + response, languageStrings.SUBREDDIT_PREFIX + subredditList[0], response);
+    alexa.emit(':tellWithCard', response, languageStrings.SUBREDDIT_PREFIX + subredditList[0], cardContent);
 }
 
 function readPostsFromMultiple( toRead ) {
