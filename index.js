@@ -13,7 +13,7 @@ var dynamo = new doc.DynamoDB();
 const languageStrings = {
     'LINK_ACCOUNT': 'You need to link your Reddit account to use this skill. See the Alexa app for more information',
     'POSTS_FOUND_HOMEPAGE': 'Here are the top posts from your Reddit front page: ',
-    'POSTS_FOUND_SUBREDDIT': 'Here are the top posts from are ',
+    'POSTS_FOUND_SUBREDDIT': 'Here are the top posts from are {subreddit}: ',
     'FROM_WHERE': 'From r ',
     'CHECK_APP': 'You can see more information about these posts in the Alexa app.',
     'CARD_TITLE': 'My Frontpage',
@@ -41,7 +41,7 @@ var handlers = {
         }
     },
     'getSubredditIntent': function() {
-        var subredditName = this.event.request.intent.slogs.subreddit.value.split(' ');
+        var subredditName = this.event.request.intent.slots.subreddit.value.split(' ');
         subredditName = subredditName[Math.max(subredditName.length - 1, 0)];
         subredditList.push(subredditName);
         getSubredditsFromList( readPostsFromOne );
@@ -63,14 +63,15 @@ function getSubredditsFromList( callback ) {
 }
 
 function readPostsFromOne( toRead ) {
-    var response = languageStrings.POSTS_FOUND_SUBREDDIT + subredditList[0];
+    var subredditIntro = languageStrings.POSTS_FOUND_SUBREDDIT.replace('{subreddit}', subredditList[0]);
+    var response = '';
     for( let i=0; i<5; i++) {
         let postObj = toRead[i];
         console.log(postObj);
         response += postObj.data.title + (postObj.data.title.substr(postObj.data.title.length - 1).match('[.?!]') ? ' ' : '. ');
     }
     response += languageStrings.CHECK_APP;
-    alexa.emit(':tellWithCard', response, languageStrings.SUBREDDIT_PREFIX + subredditList[0], response);
+    alexa.emit(':tellWithCard', subredditIntro + response, languageStrings.SUBREDDIT_PREFIX + subredditList[0], response);
 }
 
 function readPostsFromMultiple( toRead ) {
@@ -139,8 +140,6 @@ function httpGet(host, path, callback, accessToken) {
     };
 
     return http.get(options, (request) => {
-        console.log(request.statusCode);
-
         var body = '';
 
         request.on('data', (d) => {
@@ -148,8 +147,6 @@ function httpGet(host, path, callback, accessToken) {
         });
 
         request.on('end', function () {
-            console.log('response body');
-            console.log(body);
             if( body ) {
                 callback( JSON.parse(body) );
             } else {
