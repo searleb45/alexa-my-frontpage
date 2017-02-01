@@ -17,7 +17,9 @@ const languageStrings = {
     'FROM_WHERE': 'From r ',
     'CHECK_APP': 'You can see more information about these posts in the Alexa app.',
     'CARD_TITLE': 'My Frontpage',
-    'SUBREDDIT_PREFIX': '/r/'
+    'SUBREDDIT_PREFIX': '/r/',
+    'INVALID_FORMAT_ERR': 'There was a problem with the response from Reddit. It\'s possible that the subreddit you requested does not exist.',
+    'NO_SUBREDDITS_FOUND': 'We were unable to retrieve your subreddits. Please re-link your account in the Alexa app to update your subreddit list.'
 }
 const tableName = 'myFrontpageSubredditCache';
 
@@ -29,7 +31,6 @@ var handlers = {
         this.emit('getFrontpageIntent');
     },
     'getFrontpageIntent': function() {
-        console.log('intent found');
         subredditList = [];
         var accessToken = this.event.session.user.accessToken,
             userId = this.event.session.user.userId;
@@ -37,13 +38,18 @@ var handlers = {
             console.log('fetching from reddit');
             fetchSubredditList( userId, accessToken );
         } else {
-            console.log('fetching from dynamodb');
             getUserSavedList( userId );
         }
     },
     'getSubredditIntent': function() {
-        var subredditName = this.event.request.intent.slots.subreddit.value.split(' ');
-        subredditName = subredditName[Math.max(subredditName.length - 1, 0)];
+        var subredditName = this.event.request.intent.slots.subreddit.value;
+
+        if( subredditName.slice(0,2) === 'r ') {
+            subredditName = subredditName.slice(2);
+        } else if( subredditName.slice(0,4) === 'are ') {
+            subredditName = subredditName.slice(4);
+        }
+        subredditName = subredditName.replace(/\s/g, '');
         subredditList = [ subredditName ];
         getSubredditsFromList( readPostsFromOne );
     },
@@ -68,7 +74,6 @@ function readPostsFromOne( toRead ) {
     var cardContent = '';
     for( let i=0; i<5; i++) {
         let postObj = toRead[i];
-        console.log(postObj);
         response += postObj.data.title + (postObj.data.title.substr(postObj.data.title.length - 1).match('[.?!]') ? ' ' : '. ');
         cardContent += postObj.data.title + '\n';
     }
@@ -81,7 +86,6 @@ function readPostsFromMultiple( toRead ) {
     var cardContent = '';
     for( let i=0; i<5; i++ ) {
         let postObj = toRead[i];
-        console.log(postObj);
         response += languageStrings.FROM_WHERE + postObj.data.subreddit + ': ';
         response += postObj.data.title + (postObj.data.title.substr(postObj.data.title.length - 1).match('[.?!]') ? ' ' : '. ');
         cardContent += postObj.data.title + ' - ' + languageStrings.SUBREDDIT_PREFIX + postObj.data.subreddit + '\n';
@@ -92,7 +96,7 @@ function readPostsFromMultiple( toRead ) {
 
 exports.handler = function(event, context, callback) {
     alexa = Alexa.handler(event, context);
-    alexa.APP_ID = APP_ID;
+    alexa.appId = APP_ID;
     
     alexa.registerHandlers(handlers);
     alexa.execute();
@@ -105,7 +109,6 @@ function fetchSubredditList( userId, accessToken ) {
 }
 
 function getUserSavedList( userId ) {
-    console.log('fetching from dynamodb for userId' + userId);
     dynamo.getItem( {
         TableName: 'myFrontpageSubredditCache', 
         Key: {
@@ -115,10 +118,10 @@ function getUserSavedList( userId ) {
         }
     }, (err, res) => {
         if( err ) {
-            console.log(err);
+            console.log("Error retrieving from DynamoDB");
+            console.error(err);
+            alexa.emit(':tellWithLinkAccountCard', languageStrings.NO_SUBREDDITS_FOUND);
         } else {
-            console.log('subreddit list found');
-            console.log(res.Item.subreddits.SS);
             if( res && res.Item && res.Item.subreddits ) {
                 subredditList = res.Item.subreddits.SS;
             }
@@ -126,14 +129,6 @@ function getUserSavedList( userId ) {
         getSubredditsFromList( readPostsFromMultiple );
     });
 }
-
-// alexa = {
-//     emit: function(eventType, response) {
-//         console.log(response);
-//     }
-// }
-// subredditList = ['AskReddit', 'technology'];
-// getSubredditsFromList();
 
 function httpGet(host, path, callback, accessToken) {
     var options = {
@@ -150,7 +145,14 @@ function httpGet(host, path, callback, accessToken) {
 
         request.on('end', function () {
             if( body ) {
-                callback( JSON.parse(body) );
+                try {
+                    callback( JSON.parse(body) );
+                } catch (err) {
+                    console.error('Parse error from Reddit');
+                    console.log('Path: ' + path);
+                    console.log(body);
+                    alexa.emit(':tell', languageStrings.INVALID_FORMAT_ERR);
+                }
             } else {
                 console.log('message body is blank');
             }
