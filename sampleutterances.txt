@@ -14,3 +14,13 @@ getFrontpageIntent what's new
 getFrontpageIntent new
 getFrontpageIntent new on reddit
 getFrontpageIntent check reddit
+
+
+getSubredditIntent for the top posts from subreddit {subreddit}
+getSubredditIntent for the top posts from subreddit are {subreddit}
+getSubredditIntent for posts from are {subreddit}
+getSubredditIntent for posts from {subreddit}
+getSubredditIntent {subreddit}
+getSubredditIntent are {subreddit}
+getSubredditIntent what's new on {subreddit}
+getSubredditIntent what's new on are {subreddit}

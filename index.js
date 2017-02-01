@@ -13,6 +13,7 @@ var dynamo = new doc.DynamoDB();
 const languageStrings = {
     'LINK_ACCOUNT': 'You need to link your Reddit account to use this skill. See the Alexa app for more information',
     'POSTS_FOUND_HOMEPAGE': 'Here are the top posts from your Reddit front page: ',
+    'POSTS_FOUND_SUBREDDIT': 'Here are the top posts from are ',
     'FROM_WHERE': 'From r ',
     'CHECK_APP': 'You can see more information about these posts in the Alexa app.',
     'CARD_TITLE': 'My Frontpage',
@@ -33,40 +34,57 @@ var handlers = {
             userId = this.event.session.user.userId;
         if( accessToken ) {
             console.log('fetching from reddit');
-            subredditList = fetchSubredditList( userId, accessToken );
+            fetchSubredditList( userId, accessToken );
         } else {
             console.log('fetching from dynamodb');
-            subredditList = getUserSavedList( userId );
+            getUserSavedList( userId );
         }
+    },
+    'getSubredditIntent': function() {
+        var subredditName = this.event.request.intent.slogs.subreddit.value.split(' ');
+        subredditName = subredditName[Math.max(subredditName.length - 1, 0)];
+        subredditList.push(subredditName);
+        getSubredditsFromList( readPostsFromOne );
     },
     'Unhandled': function() {
         this.emit('getFrontpageIntent');
     }
 }
 
-function getSubredditsFromList() {
-    console.log('calling getSubredditsFromList');
+function getSubredditsFromList( callback ) {
     if( subredditList ) {
         var redditPath = '/r/' + subredditList.join('+') + '.json';
-        console.log('path is ' + redditPath);
         httpGet('www.reddit.com', redditPath, (res) => {
-            console.log(res);
-            var response = languageStrings.POSTS_FOUND_HOMEPAGE;
-            var cardContent = '';
-            var toRead = res.data.children.slice(0,5);
-            for( let i=0; i<5; i++ ) {
-                let postObj = toRead[i];
-                console.log(postObj);
-                response += languageStrings.FROM_WHERE + postObj.data.subreddit + ': ';
-                response += postObj.data.title + (postObj.data.title.substr(postObj.data.title.length - 1).match('[.?!]') ? ' ' : '. ');
-                cardContent += postObj.data.title + ' - ' + languageStrings.SUBREDDIT_PREFIX + postObj.data.subreddit + '\n';
-            }
-            response += languageStrings.CHECK_APP;
-            alexa.emit(':tellWithCard', response, languageStrings.CARD_TITLE, cardContent);
+            callback( res.data.children.slice(0,5));
         });
     } else {
         this.emit(':tellWithLinkAccountCard', languageStrings.LINK_ACCOUNT);
     }
+}
+
+function readPostsFromOne( toRead ) {
+    var response = languageStrings.POSTS_FOUND_SUBREDDIT + subredditList[0];
+    for( let i=0; i<5; i++) {
+        let postObj = toRead[i];
+        console.log(postObj);
+        response += postObj.data.title + (postObj.data.title.substr(postObj.data.title.length - 1).match('[.?!]') ? ' ' : '. ');
+    }
+    response += languageStrings.CHECK_APP;
+    alexa.emit(':tellWithCard', response, languageStrings.SUBREDDIT_PREFIX + subredditList[0], response);
+}
+
+function readPostsFromMultiple( toRead ) {
+    var response = languageStrings.POSTS_FOUND_HOMEPAGE;
+    var cardContent = '';
+    for( let i=0; i<5; i++ ) {
+        let postObj = toRead[i];
+        console.log(postObj);
+        response += languageStrings.FROM_WHERE + postObj.data.subreddit + ': ';
+        response += postObj.data.title + (postObj.data.title.substr(postObj.data.title.length - 1).match('[.?!]') ? ' ' : '. ');
+        cardContent += postObj.data.title + ' - ' + languageStrings.SUBREDDIT_PREFIX + postObj.data.subreddit + '\n';
+    }
+    response += languageStrings.CHECK_APP;
+    alexa.emit(':tellWithCard', response, languageStrings.CARD_TITLE, cardContent);
 }
 
 exports.handler = function(event, context, callback) {
@@ -102,7 +120,7 @@ function getUserSavedList( userId ) {
                 subredditList = res.Item.subreddits.SS;
             }
         }
-        getSubredditsFromList();
+        getSubredditsFromList( readPostsFromMultiple );
     });
 }
 

@@ -3,7 +3,7 @@
         { "intent": "getFrontpageIntent" },
         { 
             "intent": "getSubredditIntent", 
-            "slots": [ {"name": "subreddit", "type": "AMAZON.LITERAL"} ] 
+            "slots": [ {"name": "subreddit", "type": "subreddit"} ] 
         }
     ]
 }
