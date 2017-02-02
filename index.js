@@ -5,7 +5,8 @@ var Alexa = require('alexa-sdk'),
 
 
 var APP_ID = 'amzn1.ask.skill.b800d47a-3bb7-4a59-8e7a-f6b6fae05798',
-    VERSION = '0.0.2',
+    VERSION = '0.1.0',
+    REDDIT_APP_ID = 'alexa:com.dualsaber.myfrontpage:v' + VERSION + ' (by /u/masterdualsaber)',
     alexa;
 
 var dynamo = new doc.DynamoDB();
@@ -106,10 +107,44 @@ exports.handler = function(event, context, callback) {
     alexa.execute();
 };
 
-function fetchSubredditList( userId, accessToken ) {
-    httpGet('oauth.reddit.com', '/subreddits/mine/subscriber', (res) => {
-
+function fetchSubredditList( userId, accessToken, afterParam ) {
+    httpGet('oauth.reddit.com', '/subreddits/mine/subscriber?limit=100' + (afterParam ? '&after=' + afterParam : ''), (res) => {
+        handleSubredditsListResponse( userId, accessToken, res );
     }, accessToken);
+}
+
+function handleSubredditsListResponse( userId, accessToken, res ) {
+    for( var i=0; i<res.data.children.length; i++) {
+        subredditList.push( res.data.children[i].data.display_name );
+    }
+    if( res.data.after ) {
+        fetchSubredditList(userId, accessToken, res.data.after);
+    } else {
+        saveUserList( userId );
+        getSubredditsFromList();
+    }
+}
+
+function saveUserList( userId ) {
+    dynamo.putItem( {
+        TableName: 'myFrontpageSubredditCache',
+        Item: {
+            "userId": {
+                S: userId
+            },
+            "subreddits": {
+                SS: subredditList
+            }
+        }
+    }, (err, res) => {
+        if( err ) {
+            console.log('Error saving subreddits to DynamoDB');
+            console.error(err);
+            console.log(subredditList);
+        } else {
+            console.log('Saved user ID ' + userId + ' to DynamoDB');
+        }
+    })
 }
 
 function getUserSavedList( userId ) {
@@ -135,10 +170,18 @@ function getUserSavedList( userId ) {
 }
 
 function httpGet(host, path, callback, accessToken) {
+    console.log(path);
     var options = {
         host: host,
         path: path
     };
+
+    if( accessToken ) {
+        options.headers = {
+            'Authorization': 'bearer ' + accessToken,
+            'User-Agent': REDDIT_APP_ID
+        }
+    }
 
     return http.get(options, (request) => {
         var body = '';
@@ -149,13 +192,18 @@ function httpGet(host, path, callback, accessToken) {
 
         request.on('end', function () {
             if( body ) {
+                let parsedRes;
                 try {
-                    callback( JSON.parse(body) );
+                    parsedRes = JSON.parse(body);
                 } catch (err) {
                     console.error('Parse error from Reddit');
                     console.log('Path: ' + path);
                     console.log(body);
                     alexa.emit(':tell', languageStrings.INVALID_FORMAT_ERR);
+                }
+
+                if( parsedRes ) {
+                    callback(parsedRes);
                 }
             } else {
                 console.log('message body is blank');
