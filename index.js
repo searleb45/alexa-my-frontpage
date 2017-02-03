@@ -1,14 +1,14 @@
+/*jslint es6 */
 'use strict';
-var Alexa = require('alexa-sdk'),
+let Alexa = require('alexa-sdk'),
     doc = require('aws-sdk'),
     http = require('https');
 
 
-var VERSION = '1.0.0',
-    REDDIT_APP_ID = process.env.USER_AGENT,
-    alexa;
+const REDDIT_APP_ID = process.env.USER_AGENT;
+let alexa;
 
-var dynamo = new doc.DynamoDB();
+let dynamo = new doc.DynamoDB();
 
 const languageStrings = {
     'LINK_ACCOUNT': 'You need to link your Reddit account to use this skill. See the Alexa app for more information',
@@ -20,18 +20,18 @@ const languageStrings = {
     'SUBREDDIT_PREFIX': '/r/',
     'INVALID_FORMAT_ERR': 'There was a problem with the response from Reddit. It\'s possible that the subreddit you requested does not exist.',
     'NO_SUBREDDITS_FOUND': 'We were unable to retrieve your subreddits. Please re-link your account in the Alexa app to update your subreddit list.'
-}
+};
 
 // Return empty list by default in case of error
-var subredditList = [];
+let subredditList = [];
 
-var handlers = {
+let handlers = {
     'LaunchRequest': function() {
         this.emit('getFrontpageIntent');
     },
     'getFrontpageIntent': function() {
         subredditList = [];
-        var accessToken = this.event.session.user.accessToken,
+        let accessToken = this.event.session.user.accessToken,
             userId = this.event.session.user.userId;
         if( accessToken ) {
             console.log('fetching from reddit');
@@ -41,7 +41,7 @@ var handlers = {
         }
     },
     'getSubredditIntent': function() {
-        var subredditName = this.event.request.intent.slots.subreddit.value;
+        let subredditName = this.event.request.intent.slots.subreddit.value;
 
         if( subredditName.slice(0,2) === 'r ') {
             subredditName = subredditName.slice(2);
@@ -55,11 +55,11 @@ var handlers = {
     'Unhandled': function() {
         this.emit('getFrontpageIntent');
     }
-}
+};
 
 function getSubredditsFromList() {
     if( subredditList ) {
-        var redditPath = '/r/' + subredditList.join('+') + '.json';
+        let redditPath = '/r/' + subredditList.join('+') + '.json';
         httpGet('www.reddit.com', redditPath, (res) => {
             if( subredditList.length === 1 ) {
                 readPostsFromOne(res.data.children.slice(0,5));
@@ -73,8 +73,8 @@ function getSubredditsFromList() {
 }
 
 function readPostsFromOne( toRead ) {
-    var response = languageStrings.POSTS_FOUND_SUBREDDIT.replace('{subreddit}', subredditList[0]);
-    var cardContent = '';
+    let response = languageStrings.POSTS_FOUND_SUBREDDIT.replace('{subreddit}', subredditList[0]);
+    let cardContent = '';
     for( let i=0; i<5; i++) {
         let postObj = toRead[i];
         response += postObj.data.title + (postObj.data.title.substr(postObj.data.title.length - 1).match('[.?!]') ? ' ' : '. ');
@@ -85,8 +85,8 @@ function readPostsFromOne( toRead ) {
 }
 
 function readPostsFromMultiple( toRead ) {
-    var response = languageStrings.POSTS_FOUND_HOMEPAGE;
-    var cardContent = '';
+    let response = languageStrings.POSTS_FOUND_HOMEPAGE;
+    let cardContent = '';
     for( let i=0; i<5; i++ ) {
         let postObj = toRead[i];
         response += languageStrings.FROM_WHERE + postObj.data.subreddit + ': ';
@@ -100,7 +100,6 @@ function readPostsFromMultiple( toRead ) {
 exports.handler = function(event, context, callback) {
     alexa = Alexa.handler(event, context);
     alexa.appId = process.env.APP_ID;
-    
     alexa.registerHandlers(handlers);
     alexa.execute();
 };
@@ -112,7 +111,7 @@ function fetchSubredditList( userId, accessToken, afterParam ) {
 }
 
 function handleSubredditsListResponse( userId, accessToken, res ) {
-    for( var i=0; i<res.data.children.length; i++) {
+    for( let i=0; i<res.data.children.length; i++) {
         subredditList.push( res.data.children[i].data.display_name );
     }
     if( res.data.after ) {
@@ -147,7 +146,7 @@ function saveUserList( userId ) {
 
 function getUserSavedList( userId ) {
     dynamo.getItem( {
-        TableName: 'myFrontpageSubredditCache', 
+        TableName: 'myFrontpageSubredditCache',
         Key: {
             userId: {
                 S: userId
@@ -169,7 +168,7 @@ function getUserSavedList( userId ) {
 
 function httpGet(host, path, callback, accessToken) {
     console.log(path);
-    var options = {
+    let options = {
         host: host,
         path: path
     };
@@ -182,7 +181,7 @@ function httpGet(host, path, callback, accessToken) {
     }
 
     return http.get(options, (request) => {
-        var body = '';
+        let body = '';
 
         request.on('data', (d) => {
             body += d;
@@ -216,7 +215,7 @@ function httpGet(host, path, callback, accessToken) {
 // https://stackoverflow.com/questions/18123501/replacing-accented-characters-with-plain-ascii-ones
 function removeDiacritics (str) {
 
-  var defaultDiacriticsRemovalMap = [
+  let defaultDiacriticsRemovalMap = [
     {'base':'A', 'letters':/[\u0041\u24B6\uFF21\u00C0\u00C1\u00C2\u1EA6\u1EA4\u1EAA\u1EA8\u00C3\u0100\u0102\u1EB0\u1EAE\u1EB4\u1EB2\u0226\u01E0\u00C4\u01DE\u1EA2\u00C5\u01FA\u01CD\u0200\u0202\u1EA0\u1EAC\u1EB6\u1E00\u0104\u023A\u2C6F]/g},
     {'base':'AA','letters':/[\uA732]/g},
     {'base':'AE','letters':/[\u00C6\u01FC\u01E2]/g},
@@ -303,7 +302,7 @@ function removeDiacritics (str) {
     {'base':'z','letters':/[\u007A\u24E9\uFF5A\u017A\u1E91\u017C\u017E\u1E93\u1E95\u01B6\u0225\u0240\u2C6C\uA763]/g}
   ];
 
-  for(var i=0; i<defaultDiacriticsRemovalMap.length; i++) {
+  for(let i=0; i<defaultDiacriticsRemovalMap.length; i++) {
     str = str.replace(defaultDiacriticsRemovalMap[i].letters, defaultDiacriticsRemovalMap[i].base);
   }
 
