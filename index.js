@@ -4,8 +4,7 @@ var Alexa = require('alexa-sdk'),
     http = require('https');
 
 
-var APP_ID = 'amzn1.ask.skill.b800d47a-3bb7-4a59-8e7a-f6b6fae05798',
-    VERSION = '0.1.0',
+var VERSION = '1.0.0',
     REDDIT_APP_ID = 'alexa:com.dualsaber.myfrontpage:v' + VERSION + ' (by /u/masterdualsaber)',
     alexa;
 
@@ -22,7 +21,6 @@ const languageStrings = {
     'INVALID_FORMAT_ERR': 'There was a problem with the response from Reddit. It\'s possible that the subreddit you requested does not exist.',
     'NO_SUBREDDITS_FOUND': 'We were unable to retrieve your subreddits. Please re-link your account in the Alexa app to update your subreddit list.'
 }
-const tableName = 'myFrontpageSubredditCache';
 
 // Return empty list by default in case of error
 var subredditList = [];
@@ -101,7 +99,7 @@ function readPostsFromMultiple( toRead ) {
 
 exports.handler = function(event, context, callback) {
     alexa = Alexa.handler(event, context);
-    alexa.appId = APP_ID;
+    alexa.appId = process.env.APP_ID;
     
     alexa.registerHandlers(handlers);
     alexa.execute();
@@ -127,7 +125,7 @@ function handleSubredditsListResponse( userId, accessToken, res ) {
 
 function saveUserList( userId ) {
     dynamo.putItem( {
-        TableName: 'myFrontpageSubredditCache',
+        TableName: process.env.DYNAMO_TABLE,
         Item: {
             "userId": {
                 S: userId
@@ -149,7 +147,7 @@ function saveUserList( userId ) {
 
 function getUserSavedList( userId ) {
     dynamo.getItem( {
-        TableName: 'myFrontpageSubredditCache', 
+        TableName: process.env.DYNAMO_TABLE, 
         Key: {
             userId: {
                 S: userId
