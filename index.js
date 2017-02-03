@@ -5,7 +5,7 @@ var Alexa = require('alexa-sdk'),
 
 
 var VERSION = '1.0.0',
-    REDDIT_APP_ID = 'alexa:com.dualsaber.myfrontpage:v' + VERSION + ' (by /u/masterdualsaber)',
+    REDDIT_APP_ID = process.env.USER_AGENT,
     alexa;
 
 var dynamo = new doc.DynamoDB();
@@ -147,7 +147,7 @@ function saveUserList( userId ) {
 
 function getUserSavedList( userId ) {
     dynamo.getItem( {
-        TableName: process.env.DYNAMO_TABLE, 
+        TableName: 'myFrontpageSubredditCache', 
         Key: {
             userId: {
                 S: userId
